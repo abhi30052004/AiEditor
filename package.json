@@ -11,6 +11,7 @@
     "@tiptap/pm": "latest",
     "@tiptap/react": "latest",
     "@tiptap/starter-kit": "latest",
+    "mongoose": "^9.4.1",
     "next": "latest",
     "openai": "latest",
     "react": "latest",
