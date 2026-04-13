@@ -83,10 +83,42 @@ export default function AiContentStudio() {
       const response = await fetch('/api/history')
       const result = await response.json()
       if (result.data) {
-        setHistory(result.data.slice(0, 3))
+        setHistory(result.data.slice(0, 10))
       }
     } catch (err) {
       console.error('Failed to fetch history:', err)
+    }
+  }
+
+  async function deleteHistoryItem(id, e) {
+    if (e) e.stopPropagation()
+    try {
+      const response = await fetch('/api/history', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      })
+      if (response.ok) {
+        fetchHistory()
+      }
+    } catch (err) {
+      console.error('Failed to delete history item:', err)
+    }
+  }
+
+  async function clearAllHistory() {
+    if (!confirm('Are you sure you want to clear all history?')) return
+    try {
+      const response = await fetch('/api/history', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: 'all' })
+      })
+      if (response.ok) {
+        fetchHistory()
+      }
+    } catch (err) {
+      console.error('Failed to clear history:', err)
     }
   }
 
@@ -255,15 +287,15 @@ export default function AiContentStudio() {
           <div className="hero-stats">
             <div className="stat-card">
               <strong>6</strong>
-              <span>Platform presets</span>
+              <span>Platforms</span>
             </div>
             <div className="stat-card">
-              <strong>3</strong>
-              <span>Saved history items</span>
+              <strong>10</strong>
+              <span>History Limit</span>
             </div>
             <div className="stat-card">
               <strong>5</strong>
-              <span>Quick rewrite suggestions</span>
+              <span>AI Presets</span>
             </div>
           </div>
         </section>
@@ -346,34 +378,6 @@ export default function AiContentStudio() {
               {error ? <div className="status-message error-message">{error}</div> : null}
               {success ? <div className="status-message success-message">{success}</div> : null}
             </div>
-
-            <div className="studio-card history-card">
-              <div className="history-heading">
-                <div>
-                  <p className="eyebrow">Recent history</p>
-                  <h2 className="panel-title">Last 3 conversations</h2>
-                </div>
-                <span className="history-count">{history.length}/3</span>
-              </div>
-
-              <div className="history-list">
-                {history.length === 0 ? (
-                  <div className="empty-history">
-                    Generate content once and the latest 3 results will appear here.
-                  </div>
-                ) : (
-                  history.map((item) => (
-                    <button key={item._id || item.id} type="button" className="history-item" onClick={() => handleRestoreHistory(item)}>
-                      <div className="history-topline">
-                        <strong>{item.platform}</strong>
-                        <span>{formatDateLabel(item.createdAt)}</span>
-                      </div>
-                      <p>{item.prompt}</p>
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
           </aside>
 
           <ContentEditor
@@ -383,6 +387,54 @@ export default function AiContentStudio() {
             onSuggestionClick={handleSuggestionClick}
             suggestionLoading={suggestionLoading}
           />
+
+          <aside className="right-column">
+            <div className="studio-card history-card">
+              <div className="history-heading">
+                <div>
+                  <p className="eyebrow">Recent history</p>
+                  <h2 className="panel-title">Last 10 conversations</h2>
+                  <p className="panel-subtitle">Click any item to load it back into the editor.</p>
+                </div>
+                <div className="history-actions">
+                  <span className="history-count">{history.length}/10</span>
+                  {history.length > 0 && (
+                    <button type="button" className="clear-all-btn" onClick={clearAllHistory}>
+                      Clear all
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="history-list">
+                {history.length === 0 ? (
+                  <div className="empty-history">
+                    Generate content once and the latest 10 results will appear here.
+                  </div>
+                ) : (
+                  history.map((item) => (
+                    <div key={item._id || item.id} className="history-item-wrapper">
+                      <button type="button" className="history-item" onClick={() => handleRestoreHistory(item)}>
+                        <div className="history-topline">
+                          <strong>{item.platform}</strong>
+                          <span>{formatDateLabel(item.createdAt)}</span>
+                        </div>
+                        <p>{item.prompt}</p>
+                      </button>
+                      <button 
+                        type="button" 
+                        className="delete-item-btn" 
+                        onClick={(e) => deleteHistoryItem(item._id || item.id, e)}
+                        title="Delete conversation"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </aside>
         </section>
       </div>
     </main>
