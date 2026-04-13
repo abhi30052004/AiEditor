@@ -1,5 +1,7 @@
 import OpenAI from 'openai'
 import { buildSystemPrompt, buildUserPrompt } from '@/lib/prompt-builder'
+import { connectDB } from '@/lib/db'
+import Generation from '@/models/Generation'
 
 function validatePayload(payload) {
   if (!payload?.prompt || !String(payload.prompt).trim()) {
@@ -42,7 +44,7 @@ export async function POST(request) {
     const client = new OpenAI({ apiKey })
 
     const completion = await client.chat.completions.create({
-      model: 'gpt-4.1-mini',
+      model: 'gpt-4o-mini',
       temperature: 0.7,
       messages: [
         { role: 'system', content: buildSystemPrompt() },
@@ -55,6 +57,23 @@ export async function POST(request) {
 
     if (!content) {
       return Response.json({ error: 'The model returned an empty response.' }, { status: 502 })
+    }
+
+    // Save to database
+    try {
+      await connectDB()
+      await Generation.create({
+        platform: payload.platform,
+        tone: payload.tone,
+        length: payload.length,
+        audience: payload.audience || '',
+        prompt: payload.prompt,
+        content: content
+      })
+    } catch (dbError) {
+      console.error('Database save error:', dbError)
+      // We don't want to fail the request if saving to DB fails, 
+      // but the user should know something happened if they expect history.
     }
 
     return Response.json({ content })

@@ -78,11 +78,21 @@ export default function AiContentStudio() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+  async function fetchHistory() {
+    try {
+      const response = await fetch('/api/history')
+      const result = await response.json()
+      if (result.data) {
+        setHistory(result.data.slice(0, 3))
+      }
+    } catch (err) {
+      console.error('Failed to fetch history:', err)
+    }
+  }
+
   useEffect(() => {
     try {
       const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY)
-      const savedHistory = localStorage.getItem(HISTORY_STORAGE_KEY)
-
       if (savedDraft) {
         const parsedDraft = JSON.parse(savedDraft)
         setPlatform(parsedDraft.platform || 'linkedin')
@@ -93,12 +103,7 @@ export default function AiContentStudio() {
         setEditorHtml(parsedDraft.editorHtml || '<p></p>')
       }
 
-      if (savedHistory) {
-        const parsedHistory = JSON.parse(savedHistory)
-        if (Array.isArray(parsedHistory)) {
-          setHistory(parsedHistory.slice(0, 3))
-        }
-      }
+      fetchHistory()
     } catch {
       // ignore malformed local storage
     }
@@ -145,8 +150,11 @@ export default function AiContentStudio() {
 
       const nextHtml = textToHtml(data.content || '')
       setEditorHtml(nextHtml)
-      setHistory((previous) => [createHistoryItem({ platform, tone, length, audience, prompt, editorHtml: nextHtml }), ...previous].slice(0, 3))
-      setSuccess('Draft generated and saved to the recent history sidebar.')
+      
+      // Refresh history from DB after successful generation
+      fetchHistory()
+      
+      setSuccess('Draft generated and saved to history.')
     } catch (currentError) {
       setError(currentError.message || 'Unable to generate content.')
       setSuccess('')
@@ -216,8 +224,12 @@ export default function AiContentStudio() {
     setLength(item.length)
     setAudience(item.audience)
     setPrompt(item.prompt)
-    setEditorHtml(item.editorHtml)
-    setSuccess('Loaded one of the last 3 saved conversations into the editor.')
+    
+    // Handle both local createHistoryItem format (editorHtml) and DB format (content)
+    const contentHtml = item.editorHtml || textToHtml(item.content || '')
+    setEditorHtml(contentHtml)
+    
+    setSuccess('Loaded history item into the editor.')
     setError('')
   }
 
@@ -351,7 +363,7 @@ export default function AiContentStudio() {
                   </div>
                 ) : (
                   history.map((item) => (
-                    <button key={item.id} type="button" className="history-item" onClick={() => handleRestoreHistory(item)}>
+                    <button key={item._id || item.id} type="button" className="history-item" onClick={() => handleRestoreHistory(item)}>
                       <div className="history-topline">
                         <strong>{item.platform}</strong>
                         <span>{formatDateLabel(item.createdAt)}</span>
